@@ -23,11 +23,13 @@ clc;
 
 addpath('functions');
 
+
+
 %Constants
 sFreq = 44100;
-harmonics = 20;
-noteDuration = 2;
-delayDuration = 0.2;
+noteDuration = 0.2;
+load('-ascii','rsc/harmonicCoeffs.txt');
+load('-ascii','rsc/hfAdj.txt');
 
 %Create notes here http://www.phy.mtu.edu/~suits/NoteFreqCalcs.html
 octaves = 6;	%Create 6 octaves of notes
@@ -44,60 +46,19 @@ for n = 1:length(noteNames)
 	notes.(noteNames{n}) = noteFreqs(n,:);
 end
 
-envelope = amplitudeEnvelope(noteDuration,0.8,0.05,0.35,0.1,sFreq);
-
-%Debugging
-if 0
-	figure
-	plot(([1:length(envelope)]-1)./sFreq,envelope,'linewidth',3);
-end
-
-coeffs = harmonicCoeffs(harmonics,0.1);
-if 1
-	coeffs(2:2:end) = coeffs(2:2:end).*0.1;
-else
-	test = 1:length(coeffs(2:2:end));
-	test = test./length(test);
-	coeffs(2:2:end) = coeffs(2:2:end).*test; 
-	coeffs(1:2:end) = coeffs(1:2:end).*flip(test); 
-end
-
-
-%Debugging
-if 0
-	figure
-	plot([1:length(coeffs)],coeffs,'linewidth',3);
-	keyboard;
-end
 
 %Synthesise sound here
-note1 = synthesiseSound(notes.C(5),coeffs,envelope,sFreq);
-note2 = synthesiseSound(notes.E(5),coeffs,envelope,sFreq);
-note3 = synthesiseSound(notes.G(5),coeffs,envelope,sFreq);
+songNotes = {'FSharp','E','FSharp','G','FSharp','E','FSharp','D','E','E','FSharp'};
+octaves = ones(1,length(songNotes)).*4;
+noteDurations = [2,2,2,6,2,2,2,3,1,2,4];
 
-
-%Debugging
-if 0
-	figure
-	plot(([1:length(envelope)]-1)./sFreq,note1,'linewidth',3);
+songAudio = [];
+for s = 1:length(songNotes)
+	envelope = amplitudeEnvelope(noteDuration*noteDurations(s),0.8,0.05,0.1,0.05,sFreq);
+	songAudio = [songAudio, recoSignal(notes.(songNotes{s})(octaves(s)),harmonicCoeffs,hfAdj,sFreq,noteDuration*noteDurations(s),envelope)];
 end
 
-%Add delays...
-delayPadding = zeros(1,int32(sFreq*delayDuration));
-note1 = [note1 delayPadding delayPadding];
-note2 = [delayPadding note2 delayPadding];
-note3 = [delayPadding delayPadding note3];
 
-%L = mean([note1; note2; note3]);
-L = note1 + note2 + note3;
-L = L./max(abs(L));
-
-
-%Debugging
-if 0
-	figure
-	plot(([1:length(L)]-1)./sFreq,L,'linewidth',3)
-end
-audiowrite('chord.ogg',L',sFreq);
+audiowrite('synthSong.ogg',songAudio',sFreq);
 
 
